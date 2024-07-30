@@ -1,7 +1,7 @@
-// ignore_for_file: must_be_immutable
+// ignore_for_file: must_be_immutable, deprecated_member_use
 
+import 'dart:async';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -21,13 +21,13 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final TextEditingController searchController = TextEditingController();
   LatLng? _currentPosition;
-  late GoogleMapController mapController;
+  late GoogleMapController currentMapController;
   Set<Marker> markers = {};
-  ScaffoldState? currentState;
   final places = GoogleMapsPlaces(apiKey: mapKey);
   List<Prediction> predictions = [];
-
+  late String _mapTheme;
   void initState() {
+    loadMapStyle();
     mapPreProcessing();
     super.initState();
   }
@@ -46,7 +46,7 @@ class _MapScreenState extends State<MapScreen> {
                               _currentPosition!.longitude),
                           zoom: 15),
                       onMapCreated: onMapCreated,
-                      mapType: MapType.terrain,
+                      // mapType: MapType.terrain,
                       onTap: (argument) {
                         markers.clear();
                         markers.addAll([
@@ -122,10 +122,6 @@ class _MapScreenState extends State<MapScreen> {
                                     style: const TextStyle(color: Colors.black),
                                   ),
                                   onTap: () async {
-                                    log(predictions[index]
-                                        .description!
-                                        .toString());
-
                                     PlacesDetailsResponse response =
                                         await places.getDetailsByPlaceId(
                                             predictions[index].placeId!);
@@ -150,8 +146,21 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void loadMapStyle() {
+    DefaultAssetBundle.of(context)
+        .loadString('assets/map_theme/map_theme.json')
+        .then((mapTheme) {
+      _mapTheme = mapTheme;
+    });
+  }
+
   void onMapCreated(GoogleMapController controller) {
-    mapController = controller;
+    Completer<GoogleMapController> gmCompleter = Completer();
+    gmCompleter.complete(controller);
+    gmCompleter.future.then((gmController) {
+      currentMapController = gmController;
+      currentMapController.setMapStyle(_mapTheme);
+    });
   }
 
   void setCurrentLocation(LatLng currentPosition) {
@@ -192,7 +201,7 @@ class _MapScreenState extends State<MapScreen> {
     double newZoom = zoom > 15 ? zoom : 15;
     _currentPosition = latLng;
     setState(() {
-      mapController.animateCamera(CameraUpdate.newCameraPosition(
+      currentMapController.animateCamera(CameraUpdate.newCameraPosition(
           CameraPosition(target: latLng, zoom: newZoom)));
       markers.clear();
       _currentPosition = latLng;
