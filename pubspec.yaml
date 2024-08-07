@@ -11,7 +11,9 @@ dependencies:
   google_maps_flutter: 
   google_maps_webservice : 
   geolocator : 
-  custom_map_markers:
+  widget_to_marker: ^1.0.6
+  custom_map_markers: ^0.0.2+1
+
 
 dev_dependencies:
   flutter_test:
@@ -23,6 +25,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/map_theme/
+    - assets/images/
   
     
     
