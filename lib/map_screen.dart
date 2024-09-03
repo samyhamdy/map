@@ -1,13 +1,16 @@
-// ignore_for_file: must_be_immutable
+// ignore_for_file: must_be_immutable, deprecated_member_use
 
+import 'dart:async';
 import 'dart:developer';
-
+import 'package:custom_map_markers/custom_map_markers.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_webservice/places.dart';
 import 'package:map/constants.dart';
 import 'package:map/utils.dart';
+
+import 'custom_marker.dart';
 
 class MapScreen extends StatefulWidget {
   MapScreen({
@@ -21,13 +24,14 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final TextEditingController searchController = TextEditingController();
   LatLng? _currentPosition;
-  late GoogleMapController mapController;
-  Set<Marker> markers = {};
-  ScaffoldState? currentState;
+  late GoogleMapController currentMapController;
+  List<MarkerData> _customMarkers = [];
   final places = GoogleMapsPlaces(apiKey: mapKey);
   List<Prediction> predictions = [];
+  late String _mapTheme;
 
   void initState() {
+    loadMapStyle();
     mapPreProcessing();
     super.initState();
   }
@@ -40,25 +44,34 @@ class _MapScreenState extends State<MapScreen> {
           : SafeArea(
               child: Stack(
                 children: [
-                  GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                          target: LatLng(_currentPosition!.latitude,
-                              _currentPosition!.longitude),
-                          zoom: 15),
-                      onMapCreated: onMapCreated,
-                      mapType: MapType.terrain,
-                      onTap: (argument) {
-                        markers.clear();
-                        markers.addAll([
-                          Marker(
-                            markerId: const MarkerId("1"),
-                            position:
-                                LatLng(argument.latitude, argument.longitude),
-                          )
-                        ]);
-                        setState(() {});
-                      },
-                      markers: markers),
+                  CustomGoogleMapMarkerBuilder(
+                    // screenshotDelay: ,
+                    customMarkers: _customMarkers,
+                    builder: (p0, markers) {
+                      if (markers == null) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                              target: LatLng(_currentPosition!.latitude,
+                                  _currentPosition!.longitude),
+                              zoom: 15),
+                          onMapCreated: onMapCreated,
+                          mapType: MapType.terrain,
+                          onTap: (argument) {
+                            _customMarkers.clear();
+                            _customMarkers.add(
+                              MarkerData(
+                                  marker: Marker(
+                                      markerId: const MarkerId('1'),
+                                      position: argument),
+                                  child: TextOnImage()),
+                            );
+                            setState(() {});
+                          },
+                          markers: markers);
+                    },
+                  ),
                   Positioned(
                     top: 15,
                     right: 10,
@@ -122,10 +135,6 @@ class _MapScreenState extends State<MapScreen> {
                                     style: const TextStyle(color: Colors.black),
                                   ),
                                   onTap: () async {
-                                    log(predictions[index]
-                                        .description!
-                                        .toString());
-
                                     PlacesDetailsResponse response =
                                         await places.getDetailsByPlaceId(
                                             predictions[index].placeId!);
@@ -150,37 +159,49 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void loadMapStyle() {
+    DefaultAssetBundle.of(context)
+        .loadString('assets/map_theme/map_theme.json')
+        .then((mapTheme) {
+      _mapTheme = mapTheme;
+    });
+  }
+
   void onMapCreated(GoogleMapController controller) {
-    mapController = controller;
+    Completer<GoogleMapController> gmCompleter = Completer();
+    gmCompleter.complete(controller);
+    gmCompleter.future.then((gmController) {
+      currentMapController = gmController;
+      currentMapController.setMapStyle(_mapTheme);
+    });
   }
 
   void setCurrentLocation(LatLng currentPosition) {
-    _currentPosition = currentPosition;
+    _currentPosition = LatLng(31.5017, 34.4668);
     setState(() {});
   }
 
-  void addMarkerToMap(LatLng currentPosition) {
-    markers.addAll([
-      Marker(
-        markerId: const MarkerId("1"),
-        position: LatLng(currentPosition.latitude, currentPosition.longitude),
-      )
-    ]);
+  Future<void> addMarkerToMap(LatLng currentPosition) async {
+    _customMarkers.add(
+      MarkerData(
+          marker:
+              Marker(markerId: const MarkerId('1'), position: currentPosition),
+          child: TextOnImage()),
+    );
+    setState(() {});
   }
 
   void mapPreProcessing() async {
     Position? _currentPosition = await AppUtils.determinePosition(context);
     setCurrentLocation(LatLng(
         _currentPosition?.latitude ?? 23, _currentPosition?.longitude ?? 47));
-    addMarkerToMap(LatLng(
-        _currentPosition?.latitude ?? 23, _currentPosition?.longitude ?? 47));
+    addMarkerToMap(LatLng(31.5017, 34.4668));
   }
 
   Future<List<Prediction>> getPredictions(String query) async {
     PlacesAutocompleteResponse response = await places.autocomplete(
       query,
     );
-    log(response.predictions.toString() + " here");
     if (response.isOkay) {
       return response.predictions;
     } else {
@@ -191,15 +212,16 @@ class _MapScreenState extends State<MapScreen> {
   void _changeLocation(double zoom, LatLng latLng) {
     double newZoom = zoom > 15 ? zoom : 15;
     _currentPosition = latLng;
-    setState(() {
-      mapController.animateCamera(CameraUpdate.newCameraPosition(
+    setState(() async {
+      currentMapController.animateCamera(CameraUpdate.newCameraPosition(
           CameraPosition(target: latLng, zoom: newZoom)));
-      markers.clear();
+      _customMarkers.clear();
       _currentPosition = latLng;
-      markers.add(Marker(
-        markerId: const MarkerId('1'),
-        position: latLng,
-      ));
+      _customMarkers.add(
+        MarkerData(
+            marker: Marker(markerId: const MarkerId('1'), position: latLng),
+            child: TextOnImage()),
+      );
     });
   }
 }
