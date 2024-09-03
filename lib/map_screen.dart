@@ -9,7 +9,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_webservice/places.dart';
 import 'package:map/constants.dart';
 import 'package:map/utils.dart';
-import 'package:widget_to_marker/widget_to_marker.dart';
 
 import 'custom_marker.dart';
 
@@ -27,7 +26,6 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _currentPosition;
   late GoogleMapController currentMapController;
   List<MarkerData> _customMarkers = [];
-
   final places = GoogleMapsPlaces(apiKey: mapKey);
   List<Prediction> predictions = [];
   late String _mapTheme;
