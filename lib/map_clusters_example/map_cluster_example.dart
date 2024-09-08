@@ -1,6 +1,11 @@
+import 'dart:developer';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 class MapClusteringExample extends StatefulWidget {
@@ -67,6 +72,10 @@ class _MapClusteringExampleState extends State<MapClusteringExample> {
   @override
   void initState() {
     addDummyMarkers();
+    getDistanceBetweenTwoPoints(30.0444, 31.2357, 31.2001, 29.9187);
+    distanceBetweenUsingHaversineFormula(30.0444, 31.2357, 31.2001, 29.9187);
+
+    getAddressFromLatLng(30.0444, 31.2357);
     super.initState();
   }
 
@@ -117,5 +126,51 @@ class _MapClusteringExampleState extends State<MapClusteringExample> {
         ),
       ],
     );
+  }
+
+  void getDistanceBetweenTwoPoints(
+    double startLatitude,
+    double startLongitude,
+    double endLatitude,
+    double endLongitude,
+  ) {
+    double distanceInMeters = Geolocator.distanceBetween(
+        startLatitude, startLongitude, endLatitude, endLongitude);
+
+    print((distanceInMeters / 1000).toString() + " distance in km");
+  }
+
+  double distanceBetweenUsingHaversineFormula(
+    double startLatitude,
+    double startLongitude,
+    double endLatitude,
+    double endLongitude,
+  ) {
+    var earthRadius = 6378137.0;
+    var dLat = _toRadians(endLatitude - startLatitude);
+    var dLon = _toRadians(endLongitude - startLongitude);
+
+    var a = pow(sin(dLat / 2), 2) +
+        pow(sin(dLon / 2), 2) *
+            cos(_toRadians(startLatitude)) *
+            cos(_toRadians(endLatitude));
+    var c = 2 * asin(sqrt(a));
+    print(((earthRadius * c) / 1000).toString() +
+        " distance in km using haversine formula");
+    return earthRadius * c;
+  }
+
+  static _toRadians(double degree) {
+    return degree * pi / 180;
+  }
+
+  void getAddressFromLatLng(double latitude, double longitude) async {
+    List<Placemark> placemarks =
+        await placemarkFromCoordinates(latitude, longitude);
+
+    String fullAddress = placemarks[0].locality! +
+        placemarks[0].country! +
+        placemarks[0].administrativeArea!;
+    print(fullAddress.toString() + "====fullAddress====");
   }
 }
